@@ -159,9 +159,132 @@ The container works as an operating system onto itself with all the specified pa
 docker pull [image] # pulls an image from the registry
 docker images # lists images
 docker rmi [image_id] # removes an image
-docker built -r [image_name] [path_to_dockerfile] # builds an image from a Dockerfile
+docker built -t [image_name] [path_to_dockerfile] # builds an image from a Dockerfile
 
 # Container commands
 docker run -it [image] # runs a container interactively
+  docker run -it [image] sh # open in shell mode
+  exit # type on the terminal to leave the container
+
 docker run -d [image] # runs a container in detached mode
+docker ps # lists running containers
+docker ps -a # lists all containers (including stopped)
+docker stop [container_id]
+docker start [container_id]
+docker restart [container_id]
+docker rm [container_id] # removes a stopped container
+docker exec -it [container_id] [command] # executes a command inside a running container
+
+# Volume commends
+docker volume create [volume_name]
+docker volume ls
+docker volume inspect [volume_name]
+docker volume rm [volume_name]
+
+# Network commands
+docker network ls
+docker network inspect [network_name]
+docker network create [network_name]
+docker network connect [network_name] [container_id] # connects a container to a network
+docker network disconnect [networ_name] [container_id]
+
+# Prunning commands: Removes all unused elements
+docker container prune # removes all stopped containers
+docker image prune
+docker volume prune
+docker network prune
+docker system prune # removes everything (volumes, containers, images, networks)
+
+# Other useful commands
+docker inspect [container_id | image_id] # inspects a container or image
+docker logs [container_id]
+docker cp [container_id]:[path_in_container] [path_on_host] # copy from container to host
+docker cp [path_on_host] [container_id]:[path_in_container] # copy from host to container
+docker stats # monitors container resource usage
+docker logs -f [container_id] # follows real-time logs of a container
 ```
+
+### Examples
+
+#### Running ubuntu
+
+- With this command, we're running a completely different OS inside a container
+
+```bash
+docker pull ubuntu
+docker run -it ubuntu
+```
+
+#### Creating an image and running the container
+
+```bash
+# create a simple js file inside a folder
+/hello-docker
+|- hello.js => simple js file
+
+# enter the folder
+cd hello-docker
+
+# build from the folder
+docker build -t hello-docker .
+docker images # check all images
+docker run hello-docker # run container based on image
+```
+
+## Dockerfile
+
+### Dockerfile React
+
+```dockerfile
+# set the base image to create the image
+FROM node:20-alpine
+
+# creates a user with permissions to run the app
+# -S: Creates a system user
+# -G: Adds the user to the group
+# This is done to avoid running the app as root
+# If the app is run as root, any vulnerabilities in the app can be exploited to gain access to the host system
+# It's a good practice to run the app as a non-root user
+RUN addgroup app && adduser -S -G app app
+
+# set the user to run the app
+USER app
+
+WORKDIR /app
+
+# copy package.json and package-lock.json to the working directory
+# This is done before copying the rest of the files to take advantage of Docker's cache
+# If the package.json and package-lock.json files haven't changed, Docker will use cached deps
+COPY package*.json ./
+
+# to void error EACCES: permission denied, we change the ownership of the files to the root user
+USER root
+
+# change the ownership of the /app directory to the app user
+# chown -R <user>:<group> <directory>
+# chown command changes the user and/or group ownership of a given file
+RUN chown -R app:app .
+
+# change the user back to the app user
+USER app
+
+# install dependencies
+RUN npm install
+
+# copy the rest of the files to the working directory
+COPY . .
+
+# expose port 5173 to tell Docker that the container listens on the specified network ports at run time
+EXPOSE 5173
+
+CMD npm run dev
+```
+
+- We don't run the container as the root, but as as the USER app
+- However, certain operations require elevated permissions, which a non-root user cannot perform. That's why we ensure the /app directory are owned by the `app` user. Without this. the `app` user might encounter permission issues when accessing or modifying files
+- Only `root` has the necessary permissions to adjust ownership of files and directories
+- After we perform the privileged operations, we switch back to `app` user to ensure the container doesn't run as `root`, which is a security best practice
+
+1. Start with `USER app`: Default user for running the application
+2. Temporarily switch to `USER root`: Perform privileged tasks, such as changing file ownership
+3. Switch Back to `USER app`: Ensures the application runs securely as a non-root user
