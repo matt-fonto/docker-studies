@@ -7,6 +7,12 @@ The container works as an operating system onto itself with all the specified pa
 - Docker automates the deployment, scaling, and management of applications through lightweight, portable containers
 - It allows the shipping of applications into standardized units, which work across environments
 
+### Workflow
+
+1. Write a Dockerfile: describe how to build the image (base image, app code, deps, commands etc.)
+2. Build an image: use `docker build` for it
+3. Run container: use the image to start a container. Isolated instance of the image
+
 #### Advantages of Docker
 
 1. Consistency a cross environments
@@ -35,7 +41,7 @@ The container works as an operating system onto itself with all the specified pa
 
   ```dockerfile
   # FROM image[:tag]
-
+  s
   FROM node:16-alpine
   ```
 
@@ -146,7 +152,7 @@ The container works as an operating system onto itself with all the specified pa
 
 - Tools like Docker compose or Docker Swarm manage multi-container applications and scaling
 
-## Docker Workflow
+## Docker concepts
 
 - Docker client: The UI to interact with Docker
 - Docker Host | Docker Daemon: The background process that manages containers on the system
@@ -288,3 +294,78 @@ CMD npm run dev
 1. Start with `USER app`: Default user for running the application
 2. Temporarily switch to `USER root`: Perform privileged tasks, such as changing file ownership
 3. Switch Back to `USER app`: Ensures the application runs securely as a non-root user
+
+## Port Mapping
+
+- Since the container is separated from the OS, we need to map the ports.
+- Not only do we need to expose the port in the Dockerfile so the container listens to it, but also on the OS
+
+```bash
+docker run -p port_container:port_machine
+docker run -p 5173:5173
+```
+
+## Running Docker with React
+
+1. Create the dockerfile
+2. Build the image
+3. Run container mapping the ports `docker run -p 5173:5173`
+4. How can we run a container that the changes are updated automatically?
+
+```bash
+docker run -p 5173:5173 -v "$(pwd):/app" -v /app/node_modules react-docker
+```
+
+## Publishing an image
+
+```bash
+docker login
+docker tag [image_name] [username]/[image_name]
+docker push [username]/[image_name]
+```
+
+## Docker Compose
+
+- Used to define and manage multi-container applications using a single YAML file
+- Simplifies the process of orchestrating multiple services that work together (e.g., backend, frontend, database)
+- `docker-compose.yml`
+- It also allows us to specify granulary the commands for each container
+
+```yml
+version: "3.8" # Specify Docker Compose file format version
+
+services: # Define services (containers)
+  backend:
+    image: node:16
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  frontend:
+    build: ./frontend # Build from Dockerfile in 'frontend'
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes: # Named volumes
+  db_data:
+```
+
+### Docker init
+
+- It can be very helpful to initialize our app with all the needed files
+- Run `docker init`, and it will prompt you with many questions
