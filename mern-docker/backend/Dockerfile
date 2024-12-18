@@ -4,5 +4,5 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 5173
-CMD num run dev
+EXPOSE 8000
+CMD npm start

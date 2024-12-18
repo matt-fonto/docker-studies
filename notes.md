@@ -365,6 +365,144 @@ volumes: # Named volumes
   db_data:
 ```
 
+### Steps to Containerize Frontend and Backend
+
+1. Create dockerfiles for front- and back-end
+
+```dockerfile
+# Frontend
+FROM node:16
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm","start"]
+```
+
+```dockerfile
+# Backend
+FROM node:16
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 4000
+CMD ["node","server.js"]
+```
+
+2. Create `docker-compose.yml`
+
+```yml
+version: "3.8"
+services:
+  frontend:
+    build:
+      context: ./frontend # local of the file
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000" # mapping the container and os ports
+    depends_on:
+      - backend # since the frontend service depends on the backend, the backend will be executed first
+    environment: # env variables
+      - REACT_APP_API_URL=http://localhost:4000
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+
+  # we could add a database
+  database:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+```
+
+3. Folder structure
+
+```text
+project/
+├── frontend/
+│ ├── Dockerfile
+│ ├── package.json
+│ └── src/...
+├── backend/
+│ ├── Dockerfile
+│ ├── package.json
+│ └── server.js
+└── docker-compose.yml
+```
+
+4. Run the application
+
+- Build and start containers: docker-compose up --build
+- Stop containers: docker-compose down
+
+### Docker compose watch mode
+
+- It gives us the possibility to remount the container according to some changes
+
+```yml
+version: "3.8"
+
+services:
+  web:
+    depends_on:
+      - api
+    build: ./frontend
+    ports:
+      - 5173:5173
+    environment:
+      VITE_API_URL: http://localhost:8000
+
+    develop:
+      watch:
+        - path: ./frontend/package.json
+          action: rebuild
+        - path: ./frontend/package-lock.json
+          action: rebuild
+        - path: ./frontend
+          target: /app
+          action: sync
+
+  api:
+    depends_on:
+      - db
+    build: ./backend
+    ports:
+      - 8000:8000
+    environment:
+      DB_URL: mongodb://db/anime
+    develop:
+      watch:
+        - path: ./backend/package.json
+          action: rebuild
+        - path: ./backend/package-lock.json
+          action: rebuild
+        - path: ./backend
+          target: /app
+          action: sync
+
+  db:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    volumes:
+      - anime:/data/db
+
+volumes:
+  anime:
+```
+
 ### Docker init
 
 - It can be very helpful to initialize our app with all the needed files
