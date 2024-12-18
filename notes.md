@@ -369,6 +369,8 @@ volumes: # Named volumes
 
 1. Create dockerfiles for front- and back-end
 
+- To create the dockerfile, we can also navigate to the folder and run `docker init`
+
 ```dockerfile
 # Frontend
 FROM node:16
